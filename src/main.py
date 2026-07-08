@@ -27,6 +27,8 @@ def convert_to_png(source: str | Path, destination: str | Path | None = None) ->
     else:
         destination_path = default_output_path(source_path)
     destination_path = destination_path.with_suffix(".png")
+    if destination_path == source_path:
+        raise ValueError("Input and output paths must be different")
     destination_path.parent.mkdir(parents=True, exist_ok=True)
 
     if source_path.suffix.lower() == ".svg":
@@ -38,7 +40,7 @@ def convert_to_png(source: str | Path, destination: str | Path | None = None) ->
 
         try:
             import cairosvg
-        except OSError as error:
+        except (OSError, ImportError) as error:
             raise RuntimeError(
                 "SVG conversion requires the Cairo system library. "
                 "On macOS, install it with: brew install cairo libffi"
