@@ -1,7 +1,8 @@
 # FMP
 
-FMP (Fix My Photographs) is a simple Python image converter. It converts JPEG,
-WebP, SVG, and other commonly supported image formats to PNG.
+FMP (Fix My Photographs) is a simple Python image converter. It reads any
+supported input image (PNG, JPEG, WebP, SVG, BMP, GIF, TIFF) and converts it to
+the output format of your choice.
 
 ## Project setup
 
@@ -58,19 +59,27 @@ Start the graphical interface:
 python -m src.gui
 ```
 
-Choose an image, confirm or change the output path, and select **Convert to
-PNG**. By default, converted images are saved in your Downloads folder.
+Choose an image, pick an **Output format**, confirm or change the output path,
+and select **Convert**. By default, converted images are saved in your
+Downloads folder.
 
 ## Command-line usage
 
-You can also convert an image directly from the terminal:
+You can also convert an image directly from the terminal. Without a destination,
+the image is saved to your Downloads folder as PNG:
 
 ```bash
 python -m src.main input.webp
 ```
 
-To choose a specific output location, provide a second path:
+Choose the output format with a destination extension:
 
 ```bash
-python -m src.main input.svg output.png
+python -m src.main input.svg output.jpg
+```
+
+Or with the `--format` flag (png, jpg/jpeg, webp, bmp, gif, tiff/tif):
+
+```bash
+python -m src.main input.png --format webp
 ```

@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import tkinter as tk
+from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 try:
-    from .main import convert_to_png, default_output_path
+    from .main import DEFAULT_EXTENSION, convert_image, default_output_path
 except ImportError:
-    from main import convert_to_png, default_output_path
+    from main import DEFAULT_EXTENSION, convert_image, default_output_path
+
+# Output formats offered in the picker, in display order.
+OUTPUT_CHOICES = ["PNG", "JPEG", "WEBP", "BMP", "GIF", "TIFF"]
 
 
 BACKGROUND = "#f4f7fb"
@@ -26,13 +30,15 @@ class ConverterApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("FMP Image Converter")
-        self.root.geometry("680x500")
+        self.root.geometry("680x600")
         self.root.resizable(False, False)
         self.root.configure(background=BACKGROUND)
 
         self.source_path = tk.StringVar()
         self.output_path = tk.StringVar()
+        self.output_format = tk.StringVar(value=OUTPUT_CHOICES[0])
         self.status = tk.StringVar(value="Choose an image to begin.")
+        self.output_format.trace_add("write", self._on_format_change)
 
         self.configure_styles()
         self.build_interface()
@@ -101,6 +107,22 @@ class ConverterApp:
             background=[("active", PRIMARY_DARK), ("pressed", PRIMARY_DARK)],
         )
         style.configure(
+            "Format.TCombobox",
+            padding=8,
+            fieldbackground="#f8fafc",
+            background="#f8fafc",
+            foreground=TEXT,
+            bordercolor=BORDER,
+            lightcolor=BORDER,
+            darkcolor=BORDER,
+            arrowcolor=TEXT,
+        )
+        style.map(
+            "Format.TCombobox",
+            fieldbackground=[("readonly", "#f8fafc")],
+            bordercolor=[("focus", PRIMARY)],
+        )
+        style.configure(
             "Status.TLabel",
             background=BACKGROUND,
             foreground=MUTED,
@@ -131,12 +153,12 @@ class ConverterApp:
         heading.pack(side="left")
         ttk.Label(
             heading,
-            text="Convert images to PNG",
+            text="Convert between image formats",
             style="Title.TLabel",
         ).pack(anchor="w")
         ttk.Label(
             heading,
-            text="JPEG, WebP, SVG, BMP, GIF, and TIFF supported",
+            text="PNG, JPEG, WebP, SVG, BMP, GIF, and TIFF supported",
             style="Subtitle.TLabel",
         ).pack(anchor="w", pady=(3, 0))
 
@@ -167,38 +189,55 @@ class ConverterApp:
             command=self.choose_source,
             style="Secondary.TButton",
         ).grid(row=1, column=1, sticky="ew", pady=(7, 5))
-        ttk.Label(
+        self.input_hint = ttk.Label(
             card,
             text="Choose the image you want to convert.",
             style="Hint.TLabel",
-        ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, 18))
+        )
+        self.input_hint.grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, 18))
+
+        ttk.Label(card, text="Output format", style="Field.TLabel").grid(
+            row=3, column=0, columnspan=2, sticky="w"
+        )
+        ttk.Combobox(
+            card,
+            textvariable=self.output_format,
+            values=OUTPUT_CHOICES,
+            state="readonly",
+            style="Format.TCombobox",
+        ).grid(row=4, column=0, columnspan=2, sticky="ew", pady=(7, 5))
+        ttk.Label(
+            card,
+            text="Pick the format to convert your image into.",
+            style="Hint.TLabel",
+        ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(0, 18))
 
         ttk.Label(card, text="Output location", style="Field.TLabel").grid(
-            row=3, column=0, columnspan=2, sticky="w"
+            row=6, column=0, columnspan=2, sticky="w"
         )
         ttk.Entry(
             card,
             textvariable=self.output_path,
             style="Path.TEntry",
-        ).grid(row=4, column=0, sticky="ew", padx=(0, 10), pady=(7, 5))
+        ).grid(row=7, column=0, sticky="ew", padx=(0, 10), pady=(7, 5))
         ttk.Button(
             card,
             text="Save as",
             command=self.choose_output,
             style="Secondary.TButton",
-        ).grid(row=4, column=1, sticky="ew", pady=(7, 5))
+        ).grid(row=7, column=1, sticky="ew", pady=(7, 5))
         ttk.Label(
             card,
             text="Defaults to your Downloads folder.",
             style="Hint.TLabel",
-        ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(0, 22))
+        ).grid(row=8, column=0, columnspan=2, sticky="w", pady=(0, 22))
 
         ttk.Button(
             card,
-            text="Convert to PNG",
+            text="Convert",
             command=self.convert,
             style="Primary.TButton",
-        ).grid(row=6, column=0, columnspan=2, sticky="ew")
+        ).grid(row=9, column=0, columnspan=2, sticky="ew")
 
         self.status_label = ttk.Label(
             page,
@@ -225,25 +264,44 @@ class ConverterApp:
         self.status.set(message)
         self.status_label.configure(style=styles[status_type])
 
+    def _current_extension(self) -> str:
+        return DEFAULT_EXTENSION[self.output_format.get()]
+
+    def _refresh_output_path(self) -> None:
+        source = self.source_path.get().strip()
+        if source:
+            self.output_path.set(
+                str(default_output_path(source, self.output_format.get()))
+            )
+
+    def _on_format_change(self, *_args) -> None:
+        self._refresh_output_path()
+
     def choose_source(self) -> None:
         selected = filedialog.askopenfilename(
             title="Choose an image",
             filetypes=[
-                ("Image files", "*.jpg *.jpeg *.webp *.svg *.bmp *.gif *.tif *.tiff"),
+                (
+                    "Image files",
+                    "*.png *.jpg *.jpeg *.webp *.svg *.bmp *.gif *.tif *.tiff",
+                ),
                 ("All files", "*.*"),
             ],
         )
         if selected:
             self.source_path.set(selected)
-            self.output_path.set(str(default_output_path(selected)))
+            self._refresh_output_path()
+            detected = Path(selected).suffix.lstrip(".").upper() or "unknown"
+            self.input_hint.configure(text=f"Detected input format: {detected}")
             self.set_status("Ready to convert.")
 
     def choose_output(self) -> None:
+        extension = self._current_extension()
         selected = filedialog.asksaveasfilename(
-            title="Save PNG as",
-            initialdir=default_output_path("image").parent,
-            defaultextension=".png",
-            filetypes=[("PNG image", "*.png")],
+            title="Save image as",
+            initialdir=default_output_path("image", self.output_format.get()).parent,
+            defaultextension=f".{extension}",
+            filetypes=[(f"{self.output_format.get()} image", f"*.{extension}")],
         )
         if selected:
             self.output_path.set(selected)
@@ -261,7 +319,7 @@ class ConverterApp:
         self.root.update_idletasks()
 
         try:
-            output = convert_to_png(source, destination)
+            output = convert_image(source, destination, self.output_format.get())
         except Exception as error:
             self.set_status("Conversion failed. Check the error message.", "error")
             messagebox.showerror("Conversion failed", str(error))
